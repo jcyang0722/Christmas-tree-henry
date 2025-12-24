@@ -1,12 +1,19 @@
 {
   "name": "christmas-tree",
+<<<<<<< HEAD
   "homepage": "https://jcyang0722.github.io/Christmas-tree-henry",
+=======
+>>>>>>> 18657ff559b4145d689c3ff29c12ef8c6bfc2e39
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+<<<<<<< HEAD
     "build": "vite build --base=/Christmas-tree-henry/",
+=======
+    "build": "vite build",
+>>>>>>> 18657ff559b4145d689c3ff29c12ef8c6bfc2e39
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
