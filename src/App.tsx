@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, extend, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, extend} from '@react-three/fiber';
 import {
   OrbitControls,
   Environment,
@@ -16,142 +16,15 @@ import { MathUtils } from 'three';
 import * as random from 'maath/random';
 import { GestureRecognizer, FilesetResolver, DrawingUtils } from "@mediapipe/tasks-vision";
 
-// ==========================================
-// 1. 新增：开场礼物盒组件 (GiftOpener)
-// ==========================================
-const GiftOpener = ({ onOpen }: { onOpen: () => void }) => {
-  const [isOpening, setIsOpening] = useState(false);
-  const [isVisible, setIsVisible] = useState(true);
-
-  const handleOpen = () => {
-    setIsOpening(true);
-    // 延迟 1.5 秒后彻底移除遮罩，让 3D 场景完全显现
-    setTimeout(() => {
-      setIsVisible(false);
-      onOpen();
-    }, 1500);
-  };
-
-  if (!isVisible) return null;
-
-  return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 1000,
-      backgroundColor: '#050505',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transition: 'opacity 1s ease-out',
-      opacity: isOpening ? 0 : 1,
-      pointerEvents: isOpening ? 'none' : 'all',
-    }}>
-      <div 
-        onClick={handleOpen}
-        style={{
-          cursor: 'pointer',
-          transform: isOpening ? 'scale(3) translateY(-50px)' : 'scale(1)',
-          transition: 'transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center'
-        }}
-      >
-        {/* 礼盒主体 */}
-        <div style={{
-          width: '140px',
-          height: '140px',
-          backgroundColor: '#D32F2F',
-          borderRadius: '12px',
-          position: 'relative',
-          boxShadow: '0 30px 60px rgba(0,0,0,0.8)',
-          border: '2px solid #b71c1c'
-        }}>
-          {/* 横竖丝带 */}
-          <div style={{ position: 'absolute', top: 0, left: '42%', width: '16%', height: '100%', backgroundColor: '#FFD700' }} />
-          <div style={{ position: 'absolute', top: '42%', left: 0, width: '100%', height: '16%', backgroundColor: '#FFD700' }} />
-          {/* 蝴蝶结 emoji */}
-          <div style={{
-            position: 'absolute',
-            top: '-35px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: '60px',
-            filter: 'drop-shadow(0 5px 10px rgba(0,0,0,0.3))'
-          }}>🎀</div>
-        </div>
-        
-        <p style={{
-          color: '#FFD700',
-          marginTop: '50px',
-          fontFamily: 'serif',
-          fontSize: '18px',
-          letterSpacing: '5px',
-          textAlign: 'center',
-          animation: 'giftPulse 2s infinite',
-          whiteSpace: 'nowrap'
-        }}>
-          FOR HENRY<br/>
-          <span style={{ fontSize: '12px', opacity: 0.7 }}>(CLICK TO OPEN)</span>
-        </p>
-      </div>
-
-      <style>{`
-        @keyframes giftPulse {
-          0% { opacity: 0.4; transform: scale(0.95); }
-          50% { opacity: 1; transform: scale(1); }
-          100% { opacity: 0.4; transform: scale(0.95); }
-        }
-      `}</style>
-    </div>
-  );
-};
-
-// ==========================================
-// 2. 音频管理组件
-// ==========================================
-const BackgroundMusic = ({ state, trigger }: { state: 'CHAOS' | 'FORMED', trigger: boolean }) => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    if (trigger) {
-      const audio = new Audio(`${BASE_PATH}christmas_magic.mp3`);
-      audio.loop = true;
-      audio.volume = 0.4;
-      audioRef.current = audio;
-      audio.play().catch(e => console.log("Audio play deferred"));
-      
-      return () => {
-        audio.pause();
-      };
-    }
-  }, [trigger]);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      const targetVol = state === 'FORMED' ? 0.8 : 0.4;
-      const fade = setInterval(() => {
-        if (!audioRef.current) return;
-        const curr = audioRef.current.volume;
-        if (Math.abs(curr - targetVol) < 0.02) {
-          audioRef.current.volume = targetVol;
-          clearInterval(fade);
-        } else {
-          audioRef.current.volume += (targetVol - curr) * 0.1;
-        }
-      }, 50);
-      return () => clearInterval(fade);
-    }
-  }, [state]);
-
-  return null;
-};
-
-// --- 配置与路径 ---
+// --- 动态生成照片列表 ---
+//const TOTAL_NUMBERED_PHOTOS = 20;
+//const bodyPhotoPaths = [
+//  './photos/top.jpg',
+//  ...Array.from({ length: TOTAL_NUMBERED_PHOTOS }, (_, i) => `./photos/${i + 1}.jpg`)
+//];
+// --- 动态生成照片列表 ---
 const TOTAL_NUMBERED_PHOTOS = 20;
+
 // 直接手动定义基础 URL（注意：这里的名字必须和你的仓库名 Christmas-tree-henry 完全一致）
 const REPO_NAME = 'Christmas-tree-henry';
 const BASE_PATH = window.location.origin + '/' + REPO_NAME + '/';
@@ -161,6 +34,7 @@ const bodyPhotoPaths = [
   ...Array.from({ length: TOTAL_NUMBERED_PHOTOS }, (_, i) => `${BASE_PATH}photos/${i + 1}.jpg`)
 ];
 
+// --- 视觉配置 ---
 const CONFIG = {
   colors: {
     emerald: '#004225',
@@ -187,7 +61,7 @@ const CONFIG = {
   }
 };
 
-// --- Shader & Components (保持原有逻辑) ---
+// --- Shader Material (Foliage) ---
 const FoliageMaterial = shaderMaterial(
   { uTime: 0, uColor: new THREE.Color(CONFIG.colors.emerald), uProgress: 0 },
   `uniform float uTime; uniform float uProgress; attribute vec3 aTargetPos; attribute float aRandom;
@@ -446,6 +320,7 @@ const TopStar = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
   );
 };
 
+// --- Main Scene Experience ---
 const Experience = ({ sceneState, rotationSpeed, zoom }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, zoom: number }) => {
   const controlsRef = useRef<any>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
@@ -494,6 +369,7 @@ const Experience = ({ sceneState, rotationSpeed, zoom }: { sceneState: 'CHAOS' |
   );
 };
 
+// --- Gesture Controller ---
 const GestureController = ({ onGesture, onMove, onZoom, onStatus, debugMode }: any) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -585,35 +461,18 @@ const GestureController = ({ onGesture, onMove, onZoom, onStatus, debugMode }: a
   );
 };
 
-// ==========================================
-// 3. App Entry (整合礼盒控制)
-// ==========================================
+// --- App Entry ---
 export default function GrandTreeApp() {
   const [sceneState, setSceneState] = useState<'CHAOS' | 'FORMED'>('CHAOS');
   const [rotationSpeed, setRotationSpeed] = useState(0);
   const [zoom, setZoom] = useState(1.0); 
   const [aiStatus, setAiStatus] = useState("INITIALIZING...");
   const [debugMode, setDebugMode] = useState(false);
-  
-  // 新增：礼物盒开启状态
-  const [hasOpened, setHasOpened] = useState(false);
 
   return (
     <div style={{ width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative', overflow: 'hidden' }}>
       
-      {/* 只有开启后才激活音频逻辑 */}
-      <BackgroundMusic state={sceneState} trigger={hasOpened} />
-
-      {/* 新增礼物盒引导层 */}
-      {!hasOpened && (
-        <GiftOpener onOpen={() => {
-          setHasOpened(true);
-          // 开启礼物瞬间让树开始汇聚，仪式感更强
-          setTimeout(() => setSceneState('FORMED'), 500);
-        }} />
-      )}
-
-      {/* Merry Christmas 文字图层 */}
+      {/* --- 新增：Merry Christmas 文字图层 --- */}
       <div style={{
         position: 'absolute',
         top: '12%',
@@ -621,7 +480,7 @@ export default function GrandTreeApp() {
         width: '100%',
         textAlign: 'center',
         zIndex: 5,
-        pointerEvents: 'none',
+        pointerEvents: 'none', // 允许手势穿透
         transition: 'all 2.5s cubic-bezier(0.4, 0, 0.2, 1)',
         opacity: sceneState === 'FORMED' ? 1 : 0,
         transform: sceneState === 'FORMED' ? 'translateY(0) scale(1)' : 'translateY(-20px) scale(0.95)'
@@ -629,15 +488,26 @@ export default function GrandTreeApp() {
         <h1 style={{
           color: '#FFD700',
           fontFamily: '"Times New Roman", serif',
-          fontSize: 'clamp(2.5rem, 8vw, 5rem)',
+          fontSize: 'clamp(2.5rem, 10vw, 6rem)',
           fontWeight: '300',
-          letterSpacing: '0.1em',
+          letterSpacing: '0.15em',
           margin: 0,
-          textShadow: `0 0 20px rgba(255, 215, 0, 0.5), 0 0 40px rgba(255, 215, 0, 0.3)`
+          textShadow: `
+            0 0 20px rgba(255, 215, 0, 0.5),
+            0 0 40px rgba(255, 215, 0, 0.3),
+            2px 2px 4px rgba(0, 0, 0, 0.5)
+          `,
+          filter: 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.2))'
         }}>
           Merry Christmas to Henry!
         </h1>
-        <div style={{ height: '1px', width: '100px', background: 'linear-gradient(90deg, transparent, #FFD700, transparent)', margin: '15px auto', opacity: 0.6 }} />
+        <div style={{ 
+          height: '1px', 
+          width: '100px', 
+          background: 'linear-gradient(90deg, transparent, #FFD700, transparent)', 
+          margin: '10px auto',
+          opacity: 0.6
+        }} />
       </div>
 
       {/* 3D 渲染层 */}
@@ -681,6 +551,7 @@ export default function GrandTreeApp() {
         </button>
       </div>
 
+      {/* UI - AI Status */}
       <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', color: aiStatus.includes('ERROR') ? '#FF0000' : 'rgba(255, 215, 0, 0.4)', fontSize: '10px', letterSpacing: '2px', zIndex: 10, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '4px' }}>
         {aiStatus} | PINCH TO ZOOM
       </div>
